@@ -31,6 +31,7 @@ public class Game extends Canvas implements Runnable, MouseListener, KeyListener
 	
 	private ArrayList<Entity> entities = new ArrayList<>();
 	
+	private Rectangle hole;
 	private Random rand = new Random();
 	private BufferedImage image;
 	private BufferedImage spritesheet;
@@ -43,7 +44,6 @@ public class Game extends Canvas implements Runnable, MouseListener, KeyListener
 	private boolean gameOver = false;
 	private boolean showGameOver = false;
 	private boolean jaMorreu = false;
-	private boolean enter = false;
 	private boolean clicou = false;
 	
 	private int score = 0;
@@ -51,7 +51,9 @@ public class Game extends Canvas implements Runnable, MouseListener, KeyListener
 	private int maxChances = 10;
 	private int maxScore = 0;
 	private int gameOverFrames = 0;
-	private int maxGameOverFrames = 20;
+	private int maxGameOverFrames = 30;
+	private int mx = 0;
+	private int my = 0;
 	
 	public static void main(String[] args)
 	{
@@ -97,6 +99,7 @@ public class Game extends Canvas implements Runnable, MouseListener, KeyListener
 		}
 		
 		spawner = new Spawner();
+		hole = new Rectangle(WIDTH / 2 - 20, HEIGHT / 2 - 20, 40, 40);
 	}
 	
 	public void reset()
@@ -175,6 +178,20 @@ public class Game extends Canvas implements Runnable, MouseListener, KeyListener
 		
 		spawner.tick();
 		
+		if(clicou)
+		{
+			clicou = false;
+			for (int i = 0; i < entities.size(); i++)
+			{
+				Entity e = entities.get(i);
+				
+				if(mx > e.getX() && mx < e.getX() + e.getWid() && my > e.getY() && my < e.getY() + e.getHei())
+				{
+					e.destroy();
+				}
+			}
+		}		
+		
 		if (score > maxScore)
 			maxScore = score;
 		
@@ -207,6 +224,7 @@ public class Game extends Canvas implements Runnable, MouseListener, KeyListener
 		g.fillRect(0, 0, WIDTH, HEIGHT);
 		
 		g.drawImage(back, 0, 0, WIDTH, HEIGHT, null);
+		g.fillOval(WIDTH / 2 - 20, HEIGHT / 2 - 20, 40, 40);
 		
 		for (int i = 0; i < entities.size(); i++)
 		{
@@ -231,13 +249,13 @@ public class Game extends Canvas implements Runnable, MouseListener, KeyListener
 		
 		for(int i = 0; i < maxChances; i++)
 		{
-			g.setColor(Color.WHITE);
-			g.drawRect(2 + i * 47, HEIGHT - 48, 46, 15);
+			g.setColor(Color.BLACK);
+			g.drawRect(6 + i * (WIDTH / 10) - 2, HEIGHT - 48, WIDTH / 10 - 15, 15);
 			
 			if(i < chances)
 			{
-				g.setColor(Color.GRAY);
-				g.fillRect(3 + i * 47, HEIGHT - 47, 45, 14);
+				g.setColor(Color.RED);
+				g.fillRect(7 + i * (WIDTH / 10) - 2, HEIGHT - 47, (WIDTH / 10) - 16, 14);
 			}
 		}
 		
@@ -270,8 +288,8 @@ public class Game extends Canvas implements Runnable, MouseListener, KeyListener
 	public abstract class Entity
 	{
 		private BufferedImage sprite;
-		private int x;
-		private int y;
+		protected double x;
+		protected double y;
 		private int w;
 		private int h;
 		private int life;
@@ -289,12 +307,12 @@ public class Game extends Canvas implements Runnable, MouseListener, KeyListener
 		
 		public int getX()
 		{
-			return this.x;
+			return (int) Math.round(x);
 		}
 		
 		public int getY()
 		{
-			return this.y;
+			return (int) Math.round(y);
 		}
 		
 		public int getLife()
@@ -319,7 +337,7 @@ public class Game extends Canvas implements Runnable, MouseListener, KeyListener
 		
 		public void moveX(int move)
 		{
-			int xn = x + move;
+			int xn = (int) x + move;
 			
 			if (!(xn <= 0 || xn >= WIDTH - TSIZE))
 			{
@@ -365,28 +383,43 @@ public class Game extends Canvas implements Runnable, MouseListener, KeyListener
 	
 	public class Crab extends Entity
 	{
+		private BufferedImage[] sprites = new BufferedImage[4];
+		
+		private Rectangle rec;
+		
+		private double dx;
+		private double dy;
+		
+		private int eframes = 0;
+		private int maxEFrames = 5;
+		private int anim = 0;
+		
 		public Crab(int x, int y)
 		{
-			super(x, y, TSIZE, TSIZE, 3, getSprite(0, TSIZE, TSIZE, TSIZE));
+			super(x, y, TSIZE * 2, TSIZE * 2, 3, null);
+			
+			double angle = Math.atan2((HEIGHT / 2 - 30) - getY(), (WIDTH / 2 - 30) - getX());
+			
+			this.dx = Math.cos(angle);
+			this.dy = Math.sin(angle);
+			
+			for (int i = 0; i < 64; i += TSIZE)
+			{
+				sprites[(int) (i / TSIZE)] = getSprite(i, 0, TSIZE, TSIZE);
+			}
 		}
 		
 		@Override
 		public void tick()
 		{
-			moveY(1);
+			x += dx;
+			y += dy;
 			
-			if (getY() > HEIGHT)
+			rec = new Rectangle(getX(), getY(), getWid(), getHei());
+			
+			if(rec.intersects(hole))
+			{
 				sumir();
-			
-			for (int i = 0; i < entities.size(); i++)
-			{
-				
-			}
-			
-			if (this.getLife() <= 0)
-			{
-				score++;
-				this.destroy();
 			}
 		}
 		
@@ -400,7 +433,27 @@ public class Game extends Canvas implements Runnable, MouseListener, KeyListener
 		public void destroy()
 		{
 			new Smoke(getX(), getY(), Sound.explosionRock);
+			score++;
 			super.destroy();
+		}
+		
+		@Override
+		public void render(Graphics g)
+		{
+			eframes++;
+			
+			if (eframes >= maxEFrames)
+			{
+				eframes = 0;
+				anim++;
+				
+				if (anim >= sprites.length)
+				{
+					anim = 0;
+				}
+			}
+			
+			g.drawImage(sprites[anim], getX(), getY(), getWid(), getHei(), null);
 		}
 	}
 	
@@ -414,13 +467,13 @@ public class Game extends Canvas implements Runnable, MouseListener, KeyListener
 		
 		public Smoke(int x, int y, Sound sound)
 		{
-			super(x, y, TSIZE, TSIZE, 0, null);
+			super(x, y, TSIZE * 2, TSIZE * 2, 0, null);
 			
 			sound.play();
 			
 			for (int i = 0; i < 64; i += TSIZE)
 			{
-				sprites[(int) (i / TSIZE)] = getSprite(i, TSIZE * 2, TSIZE, TSIZE);
+				sprites[(int) (i / TSIZE)] = getSprite(i, TSIZE, TSIZE, TSIZE);
 			}
 		}
 		
@@ -444,7 +497,7 @@ public class Game extends Canvas implements Runnable, MouseListener, KeyListener
 		@Override
 		public void render(Graphics g)
 		{
-			g.drawImage(sprites[anim], getX(), getY(), null);
+			g.drawImage(sprites[anim], getX(), getY(), getWid(), getHei(), null);
 		}
 	}
 	
@@ -461,8 +514,47 @@ public class Game extends Canvas implements Runnable, MouseListener, KeyListener
 			{
 				frame = 0;
 				
-				new Crab(rand.nextInt(WIDTH - TSIZE), 0);
+				switch (rand.nextInt(4))
+				{
+					case 0:
+						spawnTop();
+						break;
+						
+					case 1:
+						spawnBotton();
+						break;
+						
+					case 2:
+						spawnRight();
+						break;
+						
+					case 3:
+						spawnLeft();
+						
+					default:
+						break;
+				}
 			}
+		}
+		
+		private void spawnTop()
+		{
+			new Crab(rand.nextInt(WIDTH - 32), -32);
+		}
+		
+		private void spawnBotton()
+		{
+			new Crab(rand.nextInt(WIDTH - 32), HEIGHT);
+		}
+		
+		private void spawnLeft()
+		{
+			new Crab(-32, rand.nextInt(HEIGHT - 32));
+		}
+		
+		private void spawnRight()
+		{
+			new Crab(WIDTH, rand.nextInt(HEIGHT - 32));
 		}
 	}
 	
@@ -470,7 +562,6 @@ public class Game extends Canvas implements Runnable, MouseListener, KeyListener
 	{
 		public static final Sound explosion = new Sound("/explosion.wav");
 		public static final Sound explosionRock = new Sound("/explosionRock.wav");
-		public static final Sound laser = new Sound("/laser.wav");
 		
 		private AudioClip clip;
 		
@@ -498,45 +589,47 @@ public class Game extends Canvas implements Runnable, MouseListener, KeyListener
 			}
 		}
 	}
-
+	
 	@Override
 	public void mouseClicked(MouseEvent arg0)
 	{
 	}
-
+	
 	@Override
 	public void mouseEntered(MouseEvent arg0)
 	{
 	}
-
+	
 	@Override
 	public void mouseExited(MouseEvent arg0)
 	{
 	}
-
+	
 	@Override
 	public void mousePressed(MouseEvent e)
 	{
+		mx = e.getX();
+		my = e.getY();
 		clicou = true;
 	}
-
+	
 	@Override
 	public void mouseReleased(MouseEvent arg0)
 	{
 	}
-
+	
 	@Override
 	public void keyPressed(KeyEvent e)
 	{
-		if(e.getKeyCode() == KeyEvent.VK_ENTER)
-			enter = true;
+		if(e.getKeyCode() == KeyEvent.VK_ENTER && gameOver)
+			reset();
 	}
-
+	
 	@Override
 	public void keyReleased(KeyEvent arg0)
 	{
 	}
-
+	
 	@Override
 	public void keyTyped(KeyEvent arg0)
 	{
