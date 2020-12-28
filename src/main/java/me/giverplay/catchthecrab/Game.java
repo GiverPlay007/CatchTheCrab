@@ -73,14 +73,13 @@ public class Game extends Canvas implements Runnable, MouseListener, KeyListener
 	
 	public void setupWindow()
 	{
+		setPreferredSize(new Dimension(WIDTH, HEIGHT));
 		frame = new JFrame("Game 09 - Catch The Crab");
 		frame.setResizable(false);
-		frame.setPreferredSize(new Dimension(WIDTH, HEIGHT));
-		frame.pack();
 		frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-		frame.setLocationRelativeTo(null);
-		frame.add(this);
 		frame.pack();
+		frame.add(this);
+		frame.setLocationRelativeTo(null);
 		frame.setVisible(true);
 	}
 	
@@ -560,7 +559,6 @@ public class Game extends Canvas implements Runnable, MouseListener, KeyListener
 	
 	public static class Sound
 	{
-		public static final Sound explosion = new Sound("/explosion.wav");
 		public static final Sound explosionRock = new Sound("/explosionRock.wav");
 		
 		private AudioClip clip;
